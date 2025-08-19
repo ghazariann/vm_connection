@@ -421,7 +421,6 @@ class SSHConnection:
             # Stream the log file if the exit code is still not found
             if exit_code is None:
                 log_result = self._execute_core(f"cat {log_file} 2>/dev/null || echo ''", verbose=False, timeout=5.0)
-                # print(log_result)
                 current_content = log_result.stdout
 
                 # If new content has been added to the log file, feed it to the emitter

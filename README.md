@@ -76,4 +76,6 @@ The `resilient` decorator ensures methods are protected against unexpected syste
    - **Command Execution**: Tests validate the execution of commands via mocked channels, ensuring correct handling of stdout, stderr, and exit codes.
    - **Reconnection Logic**: The strategy simulates network drops and verifies that the connection is re-established successfully after a disconnection.
 
-This strategy is appropriate as it ensures the module’s resilience and correctness without relying on a live environment, making tests fast and reliable.
+This strategy is appropriate as it ensures the module's resilience and correctness without relying on a live environment, making tests fast and reliable.
+
+Additionally, in the `tests/vm` folder, real virtual machine testing was conducted during the initial stage to validate the module's functionality in a live environment. This portion of the tests are for reference only.
