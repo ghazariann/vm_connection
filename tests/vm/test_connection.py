@@ -2,7 +2,7 @@
 """Test script for vm_connection library."""
 
 from vm_connection import SSHConnection
-from vm_connection.ssh_connection import SSHConnectionError
+from vm_connection.connection import SSHConnectionError
 
 def main():
     print("Testing VM Connection Library")
@@ -24,16 +24,20 @@ def main():
             print("✓ Connected successfully!")
             
             # Test basic command
-            stdout, stderr, exit_code = conn.execute_command("~/cloudLinux/stream_test.sh")
-            print(f"whoami: {stdout.strip()} (exit code: {exit_code})")
+            result = conn.execute("~/cloudLinux/stream_test.sh")
+            print(f"Script output (exit code: {result.exit_code})")
+            if result.stdout:
+                print(f"Stdout: {result.stdout.strip()}")
+            if result.stderr:
+                print(f"Stderr: {result.stderr.strip()}")
             
             # Test another command
-            # stdout, stderr, exit_code = conn.execute_command("uname -a")
-            # print(f"uname: {stdout.strip()}")
+            result = conn.execute("uname -a")
+            print(f"uname: {result.stdout.strip()}")
             
-            # # Test simple method
-            # result = conn.execute_command_simple("pwd")
-            # print(f"pwd: {result.strip() if result else 'Failed'}")
+            # Test simple command
+            result = conn.execute("pwd", verbose=False)
+            print(f"pwd: {result.stdout.strip() if result.stdout else 'Failed'}")
             
     except SSHConnectionError as e:
         print(f"✗ Connection failed: {e}")

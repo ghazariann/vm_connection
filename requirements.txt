@@ -1,0 +1,6 @@
+# Core dependencies for vm-connection SSH library
+paramiko>=3.0.0
+
+# Testing framework
+pytest>=7.0.0
+pytest-mock>=3.12.0

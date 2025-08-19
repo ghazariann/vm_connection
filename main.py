@@ -17,9 +17,11 @@ def main():
     # Example using context manager
     print("Using context manager:")
     with conn:
-        if conn.is_connected():
-            result = conn.execute_command("ls -la")
-            print(f"Command result: {result}")
+        result = conn.execute("ls -la")
+        print(f"Exit code: {result.exit_code}")
+        print(f"Stdout: {result.stdout}")
+        if result.stderr:
+            print(f"Stderr: {result.stderr}")
     
     print("Connection closed automatically")
 
