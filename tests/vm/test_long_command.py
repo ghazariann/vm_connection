@@ -6,7 +6,10 @@ from vm_connection.connection import SSHConnection
 
 logging.basicConfig(level=logging.INFO)
 
-def test_normal_long_command():
+
+if __name__ == "__main__":
+    print("\n=== Testing Network Disruptive Command ===")
+    
     """Test execute_long with a normal command that takes time."""
     print("=== Testing Normal Long Command ===")
     
@@ -32,11 +35,7 @@ def test_normal_long_command():
         print(f"Error: {e}")
     finally:
         conn.disconnect()
-
-def test_network_disruptive_command():
-    """Test execute_long with a command that causes network disruption."""
-    print("\n=== Testing Network Disruptive Command ===")
-    
+        
     conn = SSHConnection(
         host="192.168.215.3",
         user="debian", 
@@ -59,7 +58,3 @@ def test_network_disruptive_command():
         print(f"Error: {e}")
     finally:
         conn.disconnect()
-
-if __name__ == "__main__":
-    # test_normal_long_command()
-    test_network_disruptive_command()

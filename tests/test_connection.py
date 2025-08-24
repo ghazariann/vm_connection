@@ -1,24 +1,17 @@
 """Pytest tests for SSHConnection class without requiring live VM."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import tempfile
-import os
-from pathlib import Path
-import socket
-import time
+from unittest.mock import Mock, patch
 
 from vm_connection.connection import SSHConnection, ExecResult
 from vm_connection.exceptions import (
     SSHConnectionError,
     KeyFileNotFoundError,
     AuthenticationFailedError,
-    UnexpectedRebootError,
     OverallTimeoutError,
+    UnexpectedRebootError,
     HostUnreachableError,
-    UnexpectedError,
-    CommandExecutionFailedError,
-    LostConnectionDuringExecutionError
+    UnexpectedError
 )
 import paramiko
 import paramiko.ssh_exception
@@ -305,6 +298,7 @@ class TestSSHConnection:
 
     def test_resilient_decorator_same_boot_id(self, ssh_connection, mock_channel_setup):
         """Test @resilient decorator with same boot ID - no reboot detected."""
+        # TODO 
         transport = mock_channel_setup['transport']
         
         # Track executed commands and their responses
