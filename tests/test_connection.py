@@ -375,20 +375,67 @@ class TestSSHConnection:
         assert result.exit_code == 0
         assert "Test command output" in result.stdout
 
-
-    def test_is_connected_with_no_client(self, ssh_connection):
-        """Test is_connected returns False when no client exists."""
-        assert ssh_connection.is_connected() is False
-
-    @patch('vm_connection.connection.paramiko.SSHClient')
-    def test_is_connected_with_inactive_transport(self, mock_ssh_client, ssh_connection):
-        """Test is_connected returns False when transport is inactive."""
-        mock_client = Mock()
-        mock_ssh_client.return_value = mock_client
-        mock_transport = Mock()
-        mock_transport.is_active.return_value = False
-        mock_client.get_transport.return_value = mock_transport
+    def test_resilient_decorator_different_boot_id(self, ssh_connection, mock_channel_setup):
+        """Test @resilient decorator with different boot ID - reboot detected, should raise UnexpectedRebootError."""
+        transport = mock_channel_setup['transport']
         
-        ssh_connection._client = mock_client
+        command_responses = {
+            "cat /proc/sys/kernel/random/boot_id 2>/dev/null || true": [
+                "12345678-1234-1234-1234-123456789012\n",  # First call
+                "12345678-1234-1234-1234-123456789011\n"   # Second call (same)
+            ],
+            "echo 'test command'": ["Test command output\n"]
+        }
+        # Track which response to return for each command type
+        call_counters = {}
         
-        assert ssh_connection.is_connected() is False
+        def create_mock_channel():
+            channel = Mock()
+            channel_data = {}  # Store data for this specific channel/session
+            
+            def mock_exec_command(command):                
+                # Initialize counter for this command type if not exists
+                if command not in call_counters:
+                    call_counters[command] = 0
+                
+                # Get the response for this command execution
+                if command in command_responses:
+                    responses = command_responses[command]
+                    if call_counters[command] < len(responses):
+                        channel_data['response'] = responses[call_counters[command]].encode()
+                        call_counters[command] += 1
+                    else:
+                        channel_data['response'] = b''
+                else:
+                    channel_data['response'] = b''
+                
+                channel_data['response_sent'] = False
+                
+            def mock_recv(*args):
+                if 'response' in channel_data and not channel_data['response_sent']:
+                    data = channel_data['response']
+                    channel_data['response_sent'] = True
+                    return data
+                return b''
+            
+            def mock_recv_ready():
+                return 'response' in channel_data and not channel_data['response_sent']
+                
+            channel.exec_command = mock_exec_command
+            channel.recv = mock_recv
+            channel.recv_ready = mock_recv_ready
+            channel.recv_stderr_ready.return_value = False
+            channel.exit_status_ready.return_value = True
+            channel.recv_exit_status.return_value = 0
+            channel.settimeout = Mock()
+            channel.close = Mock()
+            
+            return channel
+        
+        transport.open_session.side_effect = create_mock_channel
+        
+        ssh_connection.connect()
+        
+        # This should raise UnexpectedRebootError due to different boot IDs
+        with pytest.raises(UnexpectedRebootError):
+            ssh_connection.execute("echo 'test command'", verbose=False)

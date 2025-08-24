@@ -75,6 +75,8 @@ class SSHConnection:
         self.port = port
         self.timeout = timeout
         self._client: Optional[paramiko.SSHClient] = None
+        self._transport = None
+        self._channel = None
         self._last_log_file = None
         self._last_exit_code_file = None
         
@@ -120,6 +122,7 @@ class SSHConnection:
             )
             
             logger.info("SSH connection established successfully")
+            self._transport = self._client.get_transport()
             return True
             
         except AuthenticationException as e:
@@ -137,6 +140,12 @@ class SSHConnection:
     
     def disconnect(self) -> None:
         """Close SSH connection and cleanup resources."""
+        if self._channel is not None:
+            self._channel.close()
+            self._channel = None
+        if self._transport is not None:
+            self._transport.close()
+            self._transport = None
         if self._client is not None:
             # logger.info("Disconnecting SSH connection")
             self._client.close()
@@ -266,6 +275,8 @@ class SSHConnection:
                 result = method(self, *args, **kwargs)
                 self.assert_same_boot(before)  # Compare boot IDs
                 return result
+            except UnexpectedRebootError: 
+                raise 
             except Exception as e:
                 logger.info(f"Connection error detected: {e}. Attempting to reconnect.")
                 if self.reconnect(max_retries=5, delay_seconds=2):
@@ -307,11 +318,19 @@ class SSHConnection:
         if not self.is_connected():
             raise SSHConnectionError("Not connected to remote host")
 
-        transport = self._client.get_transport()
-        if transport is None or not transport.is_active():
-            raise SSHConnectionError("SSH transport is not active")
+        # Reuse existing transport if available and active
+        if self._transport is None or not self._transport.is_active():
+            self._transport = self._client.get_transport()
+            if self._transport is None or not self._transport.is_active():
+                raise SSHConnectionError("SSH transport is not active")
+            # Reset channel when transport changes
+            self._channel = None
 
-        chan = transport.open_session()
+        # Reuse existing channel if available, otherwise create new one
+        if self._channel is None or self._channel.closed:
+            self._channel = self._transport.open_session()
+        
+        chan = self._channel
         try:
             chan.exec_command(command)
             chan.settimeout(0.0)  # non-blocking
@@ -455,6 +474,7 @@ class SSHConnection:
     def assert_same_boot(self, before: BootIdentity, timeout: float = 3.0) -> None:
         """Check if boot identity changed since `before`."""
         after = self.snapshot_boot_identity(timeout=timeout)
+        logger.info(f"Boot identity: {before} -> {after}")
         compare_boot_identities(before, after)
         
     def __enter__(self) -> "SSHConnection":
